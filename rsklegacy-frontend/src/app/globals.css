@@ -1,0 +1,36 @@
+/* PATH: rsklegacy-frontend/src/app/globals.css */
+
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --font-syne: "Syne", sans-serif;
+  --font-mono: "Geist Mono", monospace;
+  --accent: #f97316;
+  --accent-dim: #ea580c;
+}
+
+body {
+  font-family: var(--font-syne);
+  background-color: #09090b;
+  color: #f4f4f5;
+}
+
+code, .mono {
+  font-family: var(--font-mono);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255,255,255,0.012) 2px,
+    rgba(255,255,255,0.012) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
