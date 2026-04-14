@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity 0.8.25;
 
 /**
  * @title  RSKLegacy — Decentralized Inheritance Vault (Frontend-Friendly Edition)
@@ -24,9 +24,25 @@ pragma solidity ^0.8.24;
  *         - Pull-payment pattern: funds sent to caller, not pushed to stored addresses
  *         - Role separation: owner vs beneficiary
  *         - Two-step ownership transfer
- *         - Beneficiary change has a time-lock
+ *         - Beneficiary change has a time-lock AND a deadline guard
  *         - Contract can be paused by owner (pings still work when paused)
  *         - All critical actions emit events for off-chain auditability
+ *
+ *         DESIGN NOTE — Unlimited Ping / Dead-Man's Switch:
+ *         ping() has no frequency restriction and no deadline check. This is
+ *         intentional: as long as the owner is alive and able to call ping(),
+ *         the switch must not trigger. An owner cannot be forced off-chain.
+ *         The trade-off is that a coerced owner could theoretically ping
+ *         indefinitely; however this is a property of all dead-man's switch
+ *         designs and is considered a feature (owner is alive) not a bug.
+ *         A future upgrade could add an optional MAX_VAULT_LIFETIME constant
+ *         for users who want an absolute expiry regardless of pings.
+ *
+ *         DESIGN NOTE — block.timestamp:
+ *         Miners can manipulate block.timestamp by a few seconds (~15 s on RSK).
+ *         Given the contract's minimum 1-day lock duration and 2-day beneficiary
+ *         change delay, a few seconds of drift is not exploitable in practice.
+ *         No mitigation is required.
  */
 contract RSKLegacy {
 
@@ -244,6 +260,12 @@ contract RSKLegacy {
     /**
      * @notice Prove liveness — resets the inactivity deadline.
      *         The frontend "Ping" button calls this.
+     *
+     * @dev    DESIGN NOTE: ping() intentionally has no frequency restriction
+     *         and no deadline check. If the owner is alive and able to call
+     *         ping(), the dead-man's switch must not trigger. This is the
+     *         core invariant of the design. See contract-level NatSpec for
+     *         full rationale.
      */
     function ping() external onlyOwner whenInitialized whenActive {
         lastSeen = block.timestamp;
@@ -325,11 +347,26 @@ contract RSKLegacy {
     /**
      * @notice Confirm and apply the pending beneficiary change.
      *         Callable by anyone once the delay has elapsed.
+     *
+     * @dev    FIX (Issue #1): Added isDeadlinePassed() check. Without this,
+     *         an attacker could:
+     *           1. Owner requests beneficiary change on day 363 (365-day vault)
+     *           2. Deadline passes on day 365
+     *           3. Attacker confirms the change on day 365+
+     *           4. New (attacker-controlled) beneficiary calls claim() instead
+     *              of the original heir.
+     *         By reverting when the vault deadline has passed, the original
+     *         beneficiary is guaranteed to be able to claim once the deadline
+     *         is reached, regardless of any pending change.
      */
     function confirmBeneficiaryChange() external whenInitialized whenActive {
         if (pendingBeneficiary == address(0)) revert ZeroAddress();
         if (block.timestamp < beneficiaryChangeRequestedAt + BENEFICIARY_CHANGE_DELAY)
             revert BeneficiaryChangeLocked();
+
+        // FIX: Prevent confirmation after vault deadline has passed.
+        // The original beneficiary should be able to claim at this point.
+        if (isDeadlinePassed()) revert DeadlineAlreadyPassed();
 
         address old                  = beneficiary;
         beneficiary                  = pendingBeneficiary;
@@ -426,6 +463,11 @@ contract RSKLegacy {
 
     /**
      * @notice Returns true if the owner has missed their check-in window.
+     *
+     * @dev    NOTE on block.timestamp: Miners can manipulate block.timestamp
+     *         by ~15 seconds on RSK. Given the minimum 1-day lock duration
+     *         and 2-day beneficiary change delay, this drift is not exploitable
+     *         in practice and no mitigation is required.
      */
     function isDeadlinePassed() public view returns (bool) {
         if (!initialized) return false;

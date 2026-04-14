@@ -1,5 +1,14 @@
 // PATH: rsklegacy-frontend/src/components/ui/VaultStatusBadge.tsx
 
+/**
+ * FIX (Issue #14 / Issue #9): Status badges previously used color alone to
+ * convey meaning (green dot = active, red dot = inactive, etc.).
+ * This fails WCAG 1.4.1 (Use of Color).
+ *
+ * Fix: Each badge now shows a text label AND a color dot. The dot is
+ * aria-hidden since the text already conveys the meaning to screen readers.
+ */
+
 interface Props {
   active: boolean;
   paused: boolean;
@@ -21,8 +30,13 @@ function Badge({ color, label }: { color: string; label: string }) {
     green:  "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
   };
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full border ${colors[color]}`}>
-      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+    <span
+      role="status"
+      aria-label={`Vault status: ${label}`}
+      className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full border ${colors[color]}`}
+    >
+      {/* aria-hidden: color dot is decorative; the text label conveys the meaning */}
+      <span className="w-1.5 h-1.5 rounded-full bg-current" aria-hidden="true" />
       {label}
     </span>
   );

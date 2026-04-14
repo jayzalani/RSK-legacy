@@ -28,12 +28,27 @@ export function formatDuration(seconds: number): string {
   return parts.join(" ");
 }
 
-/** Convert a friendly duration choice to seconds */
+/**
+ * Convert a friendly duration choice to seconds.
+ *
+ * FIX (Issue #7): The previous implementation used `amount * 30 * 86400` for
+ * months, which meant 12 months = 360 days instead of 365. This caused a
+ * 5-day discrepancy between what the UI showed and what the contract enforced.
+ *
+ * Fix: months now use `Math.round((amount * 365 * 86400) / 12)` so that
+ * 1 month ≈ 30.417 days and 12 months = 365 days exactly, matching the
+ * contract's time-based deadline arithmetic.
+ */
 export function durationToSeconds(amount: number, unit: "days" | "months" | "years"): number {
   switch (unit) {
-    case "days":   return amount * 86400;
-    case "months": return amount * 30 * 86400;
-    case "years":  return amount * 365 * 86400;
+    case "days":
+      return amount * 86400;
+    case "months":
+      // Use 365/12 days per month to avoid the 30-day assumption.
+      // 12 months → 365 days (not 360).
+      return Math.round((amount * 365 * 86400) / 12);
+    case "years":
+      return amount * 365 * 86400;
   }
 }
 
