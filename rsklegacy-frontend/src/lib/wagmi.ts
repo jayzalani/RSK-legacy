@@ -32,3 +32,4 @@ export const wagmiConfig = createConfig({
     [rskTestnet.id]: http(),
   },
 });
+

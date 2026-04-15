@@ -1,11 +1,9 @@
-// PATH: rsklegacy-frontend/src/components/vault/PingButton.tsx
-
 "use client";
 import { useEffect, useState } from "react";
 import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { CONTRACT_ADDRESS, RSK_LEGACY_ABI } from "@/lib/contract";
 import { parseTxError } from "@/lib/txErrors";
-
+import TxHashLink from "@/components/ui/TxHashLink";
 interface Props {
   onSuccess?: () => void;
 }
@@ -45,9 +43,10 @@ export default function PingButton({ onSuccess }: Props) {
       {isSuccess && (
         <p className="text-emerald-400 text-xs text-center">Ping confirmed! Deadline reset.</p>
       )}
-      {hash && !isSuccess && !errorMsg && (
+      {/* {hash && !isSuccess && !errorMsg && (
         <p className="text-zinc-500 text-xs text-center font-mono truncate">tx: {hash}</p>
-      )}
+      )} */}
+      {hash && !isSuccess && !errorMsg && <TxHashLink hash={hash} />}
       {errorMsg && (
         <p className="text-red-400 text-xs text-center border border-red-500/30 bg-red-500/10 rounded-lg px-3 py-2">
           {errorMsg}
